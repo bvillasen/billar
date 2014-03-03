@@ -39,31 +39,33 @@ class Geometry:
       fig.gca().add_artist(c)
     plt.axis([-1, 1, -1, 1] )
     if show: plt.show()
-      
-  def dataCircle( r=1., center=(0.,0.), nPoints=100, color=(1.,1.,1.) ):
-    data = [ center[0]+r, center[1] ]
-    colors = [ 0., 0., 0. ]
-    theta = 0.
-    dTheta = 2*np.pi/(nPoints-4)
-    for i in range(nPoints-3):
-      data.extend([ r*np.cos(theta) +center[0], r*np.sin(theta)+center[1]])
-      colors.extend( color )
-      theta += dTheta
-    data.extend((center[0]+r, center[1] ))
-    colors.extend(color)
-    data.extend((center[0]+r, center[1] ))
-    colors.extend((0., 0., 0.))
-    return data, colors
+	  
+  def dataCircle(self, r=1., center=(0.,0.), nPoints_=100, color=(1.,1.,1.) ):
+      data = [ center[0]+r, center[1] ]
+      colors = [ 0., 0., 0. ]
+      theta = 0.
+      dTheta = 2*np.pi/(nPoints_-3)
+      for i in range(nPoints_-3):
+	data.extend([ r*np.cos(theta) +center[0], r*np.sin(theta)+center[1]])
+	colors.extend( color )
+	theta += dTheta
+      data.extend((center[0]+r, center[1] ))
+      colors.extend(color)
+      data.extend((center[0]+r, center[1] ))
+      colors.extend((0., 0., 0.))
+      return data, colors
 
-  def periodicCircles(r, xMin, xMax, yMin, yMax, nPoints_=100, color=(1., 1., 1.)):
+  def circlesGrid(self, r, xMin, xMax, yMin, yMax, nPoints=100, color=(1., 1., 1.)):
     col = []
     pos = []
     n = 0
     for x in range(int(xMin), int(xMax)+1):
       for y in range(int(yMin), int(yMax)+1):
-	p, c = dataCircle(r, (x,y), nPoints_, color)
+	p, c = self.dataCircle(r, (x,y), nPoints, color)
 	pos.extend( p )
 	col.extend(c)
 	n += 1
-    return pos, col, n
+    return np.array(pos, dtype=np.float32), np.array(col, dtype=np.float32), n
+
+
     
