@@ -17,18 +17,21 @@ toolsDirectory = parentDirectory + "/tools"
 sys.path.append( toolsDirectory )
 from cudaTools import setCudaDevice, getFreeMemory
 from tools import printProgress
-import points3D as pAnim #points3D Animation
+import points2D as pAnim #points3D Animation
 
 precision  = {"float":np.float32, "double":np.float64} 
 cudaP = "double"
 devN = None
+usingAnimation = False
 #Read in-line parameters
 for option in sys.argv:
+  if option.find("anim") >=0: usingAnimation = True
   if option == "double": cudaP = "double"
   if option == "float": cudaP = "float"
   if option.find("dev") >= 0 : devN = int(option[-1])
 
 cudaPre = precision[cudaP]
+DIM = 2
 
 #Set Parameters
 factor = 1024*2
@@ -48,7 +51,7 @@ grid = ( (nParticles - 1)//block[0] + 1, 1, 1 )
 ###########################################################################
 ###########################################################################
 #Initialize the frontier geometry 
-radius = 0.25
+radius = 0.3
 geometry = Geometry()
 #geometry.addCircle( (-0.5,  0.5), 0.25  )
 #geometry.addCircle( ( 0.5,  0.5), 0.25  )
@@ -73,10 +76,9 @@ pAnim.cirPos, pAnim.cirCol, pAnim.nCirclesGrid = geometry.circlesGrid( radius, -
 ###########################################################################
 ###########################################################################
 #Initialize and select CUDA device
-pAnim.initGL()
-cudaDev = setCudaDevice( devN = devN, usingAnimation = True )
-pAnim.CUDA_initialized = True
-
+if usingAnimation: pAnim.initGL()
+cudaDev = setCudaDevice( devN = devN, usingAnimation = usingAnimation )
+if usingAnimation: pAnim.CUDA_initialized = True
 
 
 #Read and compile CUDA code
@@ -96,7 +98,10 @@ mainKernel = cudaCode.get_function("main_kernel" )
 ###########################################################################
 ###########################################################################
 #Initialize Data
-nData = 1024*128
+  #For final plotting
+particlesForPlot = 1024
+collisionsForPlot = 128
+nData = particlesForPlot*collisionsForPlot
 print "Initializing CUDA memory"
 #np.random.seed(int(time.time()))  #Change numpy random seed
 initialFreeMemory = getFreeMemory( show=True )
@@ -150,11 +155,7 @@ print  " Total global memory used: {0:0.0f} MB".format( float(initialFreeMemory 
 ###########################################################################
 ###########################################################################
 def runDynamics( nParticles=1024*1024, nRuns=50, collisionsPerRun=1e2,  plotFinal=True ):
-  #For final plotting
-  particlesForPlot = 1024
-  collisionsForPlot = 128
-  nData = particlesForPlot*collisionsForPlot
-  
+  global usingAnimation 
   #Start Simulation
   print ""
   print "Starting simulation"
@@ -173,6 +174,7 @@ def runDynamics( nParticles=1024*1024, nRuns=50, collisionsPerRun=1e2,  plotFina
   secs = 0
 
   #Itererate for a particle bunch
+  usingAnimation = False
   changeInitial = True
   savePos = False
   start.record()
@@ -186,14 +188,13 @@ def runDynamics( nParticles=1024*1024, nRuns=50, collisionsPerRun=1e2,  plotFina
       totalTime += secs
       printProgress( runNumber, nRuns, 1, secs )
       start.record()
-    mainKernel(np.int32(nParticles), np.int32(collisionsPerRun), np.int32(nCircles), circlesCaract_d, np.int32(nLines), linesCaract_d,
+    mainKernel(np.uint8(usingAnimation), np.int32(nParticles), np.int32(collisionsPerRun), np.int32(nCircles), circlesCaract_d, np.int32(nLines), linesCaract_d,
 	      initialPosX_d, initialPosY_d, initialVelX_d, initialVelY_d, initialRegionX_d, initialRegionY_d,
 	      outPosX_d, outPosY_d, times_d,
 	      np.float32(deltaTime_anim), timesIdx_anim_d,
 	      np.float32( deltaTime_radius ), timesIdx_rad_d, timesOccupancy_d, radiusAll_d,
 	      np.int32(savePos), np.int32(particlesForPlot), np.int32(changeInitial),
 	      np.intp(0),  grid=grid, block=block)
-
   print "\n\nFinished in : {0:.4f}  sec\n".format( float( totalTime ) ) 
 
   #Get the results
@@ -226,7 +227,7 @@ def configAnimation():
 nAnimIter = 0
 def animationUpdate():
   global nAnimIter
-  mainKernel(np.int32(nParticles), np.int32(collisionsPerRun), np.int32(nCircles), circlesCaract_d, np.int32(nLines), linesCaract_d,
+  mainKernel(np.uint8(True), np.int32(nParticles), np.int32(collisionsPerRun), np.int32(nCircles), circlesCaract_d, np.int32(nLines), linesCaract_d,
 	      initialPosX_d, initialPosY_d, initialVelX_d, initialVelY_d, initialRegionX_d, initialRegionY_d,
 	      outPosX_d, outPosY_d, times_d,
 	      np.float32(deltaTime_anim), timesIdx_anim_d, 
@@ -254,8 +255,6 @@ def plotData():
   radiusAll_h = radiusAll_d.get()
   fig = plt.figure(1)
   fig.clf()
-  #indx = timesOccupancy_h.nonzero()
-  #radiusAll_h[indx] /= timesOccupancy_h[indx]
   plt.plot( timesForRadius, radiusAll_h )
   ax = plt.gca()
   ax.set_ylabel(r"$\overline{ r^2 } $", fontsize=20, rotation="horizontal")
@@ -264,17 +263,14 @@ def plotData():
 
 
 
+if usingAnimation:
+  configAnimation()
+  pAnim.updateFunc = animationUpdate
+  plt.ion()
+  plt.show()
+  pAnim.startAnimation()
 
-configAnimation()
-pAnim.updateFunc = animationUpdate
-#plotData()
-plt.ion()
-plt.show()
-pAnim.startAnimation()
-
-
-#END CUDA
-#cuda.Context.pop()  #Disable previus CUDA context
+runDynamics()
 
 
 

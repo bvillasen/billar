@@ -6,15 +6,25 @@ class Geometry:
   def __init__(self):
     self.circles = {}
     self.lines = {}
+    self.spheres = {}
+    self.walls = {}
   
   def addCircle(self, center=(0,0), radius=1, type=0, key=None):
     if not key: key = len(self.circles)
     self.circles[key] = { "c":center, "r":radius , "t":type }
   
+  def addSphere(self, center=(0,0,0), radius=1, type=0, key=None):
+    if not key: key = len(self.spheres)
+    self.spheres[key] = { "c":center, "r":radius , "t":type }
+  
   def addLine(self, center=(0,0), normal=(1,0), length=1, type=0, key=None):
     if not key: key = len(self.lines)
     self.lines[key] = { "c":center, "n":normal , "t":type }
-  
+
+  def addWall(self, center=(0,0,0), normal=(1,0,0), length=1, type=0, key=None):
+    if not key: key = len(self.walls)
+    self.walls[key] = { "c":center, "n":normal , "t":type }
+    
   def prepareCUDA(self, cudaP="float"):
     circlesPar = []
     for (key,circle) in self.circles.items():
@@ -30,6 +40,22 @@ class Geometry:
     linesPar = np.array( linesPar ).astype(cudaPrec)
     return len(self.circles), circlesPar, len(self.lines), linesPar
   
+  def prepareCUDA_3D(self, cudaP="float"):
+    spheresPar = []
+    for (key,sphere) in self.spheres.items():
+      par = [ sphere["c"][0], sphere["c"][1], sphere["c"][2], sphere["r"], sphere["t"]  ]
+      spheresPar.append(par)
+    wallsPar = []
+    for (key,wall) in self.walls.items():
+      par = [ wall["c"][0], wall["c"][1], wall["c"][2], wall["n"][0], wall["n"][1], wall["n"][2], wall["t"]  ]
+      wallsPar.append(par)
+    cudaPrec = np.float32
+    if cudaP == "double": cudaPrec = np.float64
+    spheresPar = np.array( spheresPar ).astype(cudaPrec)
+    wallsPar = np.array( wallsPar ).astype(cudaPrec)
+    return len(self.spheres), spheresPar, len(self.walls), wallsPar
+
+
   def plot(self, show=False):
     fig = plt.figure(0)
     #plt.clf()

@@ -44,12 +44,13 @@ __device__ void move( Vector2D &pos, Vector2D &vel, cudaP time ){
   
 extern "C"{
   
-__global__ void main_kernel( const int nParticles, const int collisionsPerRun, const int nCircles, cudaP *circlesCaract, const int nLines, cudaP *linesCaract,
+__global__ void main_kernel( const unsigned char usingAnimation, const int nParticles, const int collisionsPerRun, 
+			     const int nCircles, cudaP *circlesCaract, const int nLines, cudaP *linesCaract,
 			     cudaP *initPosX, cudaP *initPosY, cudaP *initVelX, cudaP *initVelY, int *initRegionX, int *initRegionY,
 			     cudaP *outPosX, cudaP *outPosY, cudaP *times,
 			     float deltaTime_anim, int *timesIdx_anim,  
 			     float deltaTime_rad, int *timesIdx_rad, int *timesOccupancy, float *radiusAll,
-			     int savePos, int particlesForSave, int changeInitial, 
+			     int savePosForPlot, int particlesForSave, int changeInitial, 
 			     float *cuda_VOB){
   int tid = blockDim.x*blockIdx.x + threadIdx.x;
 //   int nThreads = blockDim.x * gridDim.x;
@@ -114,13 +115,16 @@ __global__ void main_kernel( const int nParticles, const int collisionsPerRun, c
       }
       particleTime += timeMin;
       move( pos, vel, timeMin );
-      if (particleTime >= timeIdx_anim*deltaTime_anim ){
-	if (timeIdx_anim != 0) move( pos, vel, timeIdx_anim*deltaTime_anim-particleTime );
-	posX_sh[threadIdx.x] = pos.x + region[0];
-	posY_sh[threadIdx.x] = pos.y + region[1];
-	if (timeIdx_anim != 0) move( pos, vel, particleTime-timeIdx_anim*deltaTime_anim );
-	timeIdx_anim +=1;
+      if (usingAnimation){
+	if (particleTime >= timeIdx_anim*deltaTime_anim ){
+	  if (timeIdx_anim != 0) move( pos, vel, timeIdx_anim*deltaTime_anim-particleTime );
+	  posX_sh[threadIdx.x] = pos.x + region[0];
+	  posY_sh[threadIdx.x] = pos.y + region[1];
+	  if (timeIdx_anim != 0) move( pos, vel, particleTime-timeIdx_anim*deltaTime_anim );
+	  timeIdx_anim +=1;
+	}
       }
+    
       
       if (particleTime >= timeIdx_rad*deltaTime_rad and timeIdx_rad< %(TIME_INDEX_MAX)s ){
 	move( pos, vel, timeIdx_rad*deltaTime_rad-particleTime );
@@ -139,7 +143,7 @@ __global__ void main_kernel( const int nParticles, const int collisionsPerRun, c
 	else obstaclesLine[collideWith-nCircles].bounce(pos, vel);
       }
       
-      if (savePos==1){
+      if (savePosForPlot==1){
 	if (tid < particlesForSave){
 	outPosX[particlesForSave*collisionNumber + tid] = pos.x + region[0];
 	outPosY[particlesForSave*collisionNumber + tid] = pos.y + region[1];
@@ -148,9 +152,10 @@ __global__ void main_kernel( const int nParticles, const int collisionsPerRun, c
     }
     
     //Save data in animation buffer
-    cuda_VOB[2*tid] = posX_sh[threadIdx.x];
-    cuda_VOB[2*tid + 1] = posY_sh[threadIdx.x];
-
+    if (usingAnimation){
+      cuda_VOB[2*tid] = posX_sh[threadIdx.x];
+      cuda_VOB[2*tid + 1] = posY_sh[threadIdx.x];
+    }
     //Save final states
     if (changeInitial==1){
       initPosX[tid] = pos.x;
