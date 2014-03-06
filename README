@@ -17,7 +17,7 @@ How to run:
   You can also change the number of particles for the animation:
     python billar.py anim part=40000 
     
-  To see an interactive plot of the average squared radius over time use "plot":
+  To see an interactive plot of the average squared radius the particle occupancy over time and  use "plot":
     python billar anim plot
     
 
