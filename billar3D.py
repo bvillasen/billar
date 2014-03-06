@@ -13,8 +13,8 @@ from plotting import *
 currentDirectory = os.getcwd()
 #Add Modules from other directories
 parentDirectory = currentDirectory[:currentDirectory.rfind("/")]
-toolsDirectory = parentDirectory + "/tools"
-sys.path.append( toolsDirectory )
+#toolsDirectory = parentDirectory + "/tools"
+#sys.path.append( toolsDirectory )
 from cudaTools import setCudaDevice, getFreeMemory
 from tools import printProgress
 import points3D as pAnim #points3D Animation
@@ -72,9 +72,9 @@ geometry.addWall( ( 0, 0, -0.5), ( 0,  0, -1), type=1 ) #bottom
 nSpheres, spheresCaract_h, nWalls, wallsCaract_h = geometry.prepareCUDA_3D( cudaP=cudaP )
 
 pAnim.nPoints = nParticles
-pAnim.viewXmin, pAnim.viewXmax = -2500., 2500.
-pAnim.viewYmin, pAnim.viewYmax = -2500., 2500.
-pAnim.viewZmin, pAnim.viewZmax = -2500000., 2500000. 
+pAnim.viewXmin, pAnim.viewXmax = -10000., 10000.
+pAnim.viewYmin, pAnim.viewYmax = -10000., 10000.
+pAnim.viewZmin, pAnim.viewZmax = -10000000., 10000000. 
 
 pAnim.showGrid = False
 pAnim.nPointsPerCircle = 50
@@ -100,7 +100,7 @@ for fileName in codeFiles:
   
 cudaCodeStringTemp = open("cudaBillar3D.cuT", "r").read()
 cudaCodeString = cudaCodeStringTemp % { "nSPHERES":nSpheres, "nWALLS":nWalls, "THREADS_PER_BLOCK":block[0], "TIME_INDEX_MAX":maxTimeIndx }
-cudaCode = SourceModule(cudaCodeString, no_extern_c=True, include_dirs=[currentDirectory, toolsDirectory])
+cudaCode = SourceModule(cudaCodeString, no_extern_c=True, include_dirs=[currentDirectory])
 mainKernel = cudaCode.get_function("main_kernel" )
 
 ###########################################################################
