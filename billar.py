@@ -23,7 +23,7 @@ import points2D as pAnim #points3D Animation
 #Set Parameters for Simulation
 nParticles = 1024*1024*2 
 collisionsPerRun = 1e2              #Number of collitions for each kernel launch
-nRuns = 50			    #Number of kernel launches
+nRuns = 100			    #Number of kernel launches
 
 #For time sampling
 maxTime = 2000.

@@ -1,0 +1,9 @@
+Chaotic Billards
+
+This is a CUDA enhanced simulation for a peridic grid of disks (2D) or spheres (3D).
+
+How to run:
+  The simplest way to run the simulation is:
+    python billar.py
+  this will run the dynamics for 2M particles and 1e4 collitions per particle
+
