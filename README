@@ -21,3 +21,7 @@ How to run:
     python billar anim plot
     
 
+For 3D:
+  Everything is the same as for 2D just use the file billar3D.py instead. For example
+  pytthon billar3D.py anim plot 
+  
