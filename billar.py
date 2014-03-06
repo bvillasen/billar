@@ -166,8 +166,9 @@ print  " Total global memory used: {0:0.0f} MB".format( float(initialFreeMemory 
 #meanRadius /= nParticles
 
 def configAnimation():
-  global collisionsPerRun, deltaTime_anim
+  global collisionsPerRun, deltaTime_radius, deltaTime_anim
   collisionsPerRun = 10
+  deltaTime_radius = 500
   deltaTime_anim = 3
 
 nAnimIter = 0
