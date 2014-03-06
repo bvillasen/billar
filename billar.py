@@ -17,7 +17,7 @@ toolsDirectory = parentDirectory + "/tools"
 sys.path.append( toolsDirectory )
 from cudaTools import setCudaDevice, getFreeMemory
 from tools import printProgress
-import points2D as pAnim #points3D Animation
+
 
 
 #Set Parameters for Simulation
@@ -52,7 +52,7 @@ for option in sys.argv:
   if option == "float": cudaP = "float"
   if option.find("dev") >= 0 : devN = int(option[-1])
 
-
+if usingAnimation: import points2D as pAnim #points3D Animation
 precision  = {"float":np.float32, "double":np.float64} 
 cudaPre = precision[cudaP]
 
