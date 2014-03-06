@@ -5,5 +5,19 @@ This is a CUDA enhanced simulation for a peridic grid of disks (2D) or spheres (
 How to run:
   The simplest way to run the simulation is:
     python billar.py
-  this will run the dynamics for 2M particles and 1e4 collitions per particle
+  this will run the dynamics for 2M particles and 10000 collitions per particle
+  
+  To set the number of particles use: part="number of particles", for example:
+    python billar.py part=10000000 
+  will run the dynamics for 10M particles and 10000 collitions per particle
+  
+  To see a real-time animation of the particles positions over time use the key-word "anim":
+    python billar.py anim
+  This will run the animation for 2M particles.
+  You can also change the number of particles for the animation:
+    python billar.py anim part=40000 
+    
+  To see an interactive plot of the average squared radius over time use "plot":
+    python billar anim plot
+    
 

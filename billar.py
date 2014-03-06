@@ -65,6 +65,12 @@ if nParticles <= maxThreads: grid = ( (nParticles - 1)//block[0] + 1, 1, 1 )
 else: grid = ( (maxThreads - 1)//block[0] + 1, 1, 1 )
 
 
+def configAnimation():
+  global collisionsPerRun, deltaTime_radius, deltaTime_anim
+  collisionsPerRun = 10
+  deltaTime_radius = 100
+  deltaTime_anim = 3
+
 ###########################################################################
 ###########################################################################
 #Initialize the frontier geometry 
@@ -96,6 +102,7 @@ pAnim.cirPos, pAnim.cirCol, pAnim.nCirclesGrid = geometry.circlesGrid( radius, -
 if usingAnimation: pAnim.initGL()
 cudaDev = setCudaDevice( devN = devN, usingAnimation = usingAnimation )
 if usingAnimation: pAnim.CUDA_initialized = True
+if usingAnimation: configAnimation()
 
 
 #Read and compile CUDA code
@@ -165,11 +172,7 @@ print  " Total global memory used: {0:0.0f} MB".format( float(initialFreeMemory 
 #meanRadius = np.array([cudaPre( gpuarray.sum(radiusAll_d[i*nParticles:(i+1)*nParticles], dtype = cudaPre).get() ) for i in range(maxTimeIndx)])
 #meanRadius /= nParticles
 
-def configAnimation():
-  global collisionsPerRun, deltaTime_radius, deltaTime_anim
-  collisionsPerRun = 10
-  deltaTime_radius = 500
-  deltaTime_anim = 3
+
 
 nAnimIter = 0
 def animationUpdate():
