@@ -19,34 +19,51 @@ from cudaTools import setCudaDevice, getFreeMemory
 from tools import printProgress
 import points2D as pAnim #points3D Animation
 
-precision  = {"float":np.float32, "double":np.float64} 
+
+#Set Parameters for Simulation
+nParticles = 1024*1024*2 
+collisionsPerRun = 1e2              #Number of collitions for each kernel launch
+nRuns = 50			    #Number of kernel launches
+
+#For time sampling
+maxTime = 2000.
+maxTimeIndx = 128    #Don't change 
+deltaTime_radius = maxTime/maxTimeIndx
+deltaTime_anim = 5
+
+#For final plotting
+particlesForPlot = 1024
+collisionsForPlot = 128
+plotFinal = False
+
+
 cudaP = "double"
 devN = None
 usingAnimation = False
+plotting = False
+
 #Read in-line parameters
 for option in sys.argv:
+  if option.find("part")>=0 : nParticles = int(option[option.find("=")+1:])
+  if option.find("time")>=0 : maxTime = float(option[option.find("=")+1:])
   if option.find("anim") >=0: usingAnimation = True
+  if option.find("plot") >=0: plotting = True
   if option == "double": cudaP = "double"
   if option == "float": cudaP = "float"
   if option.find("dev") >= 0 : devN = int(option[-1])
 
+
+precision  = {"float":np.float32, "double":np.float64} 
 cudaPre = precision[cudaP]
-DIM = 2
 
-#Set Parameters
-factor = 1024*2
-nParticles = 1024*factor
-collisionsPerRun = 1e2
-nRuns = 50
 
-#For time sampling
-deltaTime_anim = 5
-deltaTime_radius = 500
-maxTimeIndx = 128
 
 #Set CUDA thread grid dimentions
 block = ( 128, 1, 1 )
-grid = ( (nParticles - 1)//block[0] + 1, 1, 1 )
+maxThreads = 1024*1024*2
+if nParticles <= maxThreads: grid = ( (nParticles - 1)//block[0] + 1, 1, 1 )
+else: grid = ( (maxThreads - 1)//block[0] + 1, 1, 1 )
+
 
 ###########################################################################
 ###########################################################################
@@ -98,17 +115,12 @@ mainKernel = cudaCode.get_function("main_kernel" )
 ###########################################################################
 ###########################################################################
 #Initialize Data
-  #For final plotting
-particlesForPlot = 1024
-collisionsForPlot = 128
 nData = particlesForPlot*collisionsForPlot
 print "Initializing CUDA memory"
 #np.random.seed(int(time.time()))  #Change numpy random seed
 initialFreeMemory = getFreeMemory( show=True )
-initialPosX_h = 0.495*np.ones(nParticles).astype(cudaPre)
-initialPosY_h = 0.495*np.ones(nParticles).astype(cudaPre)
-#initialVelX_h = np.ones(nParticles).astype(cudaPre)
-#initialVelY_h = 0*np.ones(nParticles).astype(cudaPre)
+initialPosX_h = 0.49*np.ones(nParticles).astype(cudaPre)
+initialPosY_h = 0.49*np.ones(nParticles).astype(cudaPre)
 initialTheta = 2*np.pi*np.random.rand(nParticles).astype(cudaPre) - np.pi
 initialVelX_h = np.cos(initialTheta)
 initialVelY_h = np.sin(initialTheta)
@@ -122,14 +134,6 @@ initialRegionX_d = gpuarray.to_gpu( initialRegionX_h )
 initialRegionY_d = gpuarray.to_gpu( initialRegionY_h )
 circlesCaract_d = gpuarray.to_gpu(circlesCaract_h)
 linesCaract_d = gpuarray.to_gpu(linesCaract_h)
-output_h = np.zeros( nData ).astype(cudaPre)
-outPosX_d = gpuarray.to_gpu( np.zeros_like(output_h) )
-outPosY_d = gpuarray.to_gpu( np.zeros_like(output_h) )
-#outVelX_d = gpuarray.to_gpu( np.zeros_like(output_h) )
-#outVelY_d = gpuarray.to_gpu( np.zeros_like(output_h) )
-#outRegionX_d = gpuarray.to_gpu( np.zeros( nData ).astype(np.int32) )
-#outRegionY_d = gpuarray.to_gpu( np.zeros( nData ).astype(np.int32) )
-
 times_d = gpuarray.to_gpu( np.zeros(nParticles).astype(cudaPre) )
 timesIdx_anim_d = gpuarray.to_gpu( np.zeros(nParticles).astype(np.int32) )
 timesIdx_rad_d = gpuarray.to_gpu( np.ones(nParticles).astype(np.int32) )
@@ -139,6 +143,9 @@ timesOccupancy_d = gpuarray.to_gpu( timesOccupancy_h  )
 timesForRadius = deltaTime_radius*np.arange(maxTimeIndx)
 radiusAll_h = np.zeros(maxTimeIndx).astype(np.float32)
 radiusAll_d = gpuarray.to_gpu( radiusAll_h )
+#output_h = np.zeros( nData ).astype(cudaPre)
+outPosX_d = gpuarray.to_gpu(  np.zeros( nData ).astype(cudaPre) )
+outPosY_d = gpuarray.to_gpu(  np.zeros( nData ).astype(cudaPre) )
 #nRestarts_d = gpuarray.to_gpu(np.zeros(nRuns+1).astype(np.int32))
 finalFreeMemory = getFreeMemory( show=False )
 print  " Total global memory used: {0:0.0f} MB".format( float(initialFreeMemory - finalFreeMemory)/1e6 ) 
@@ -152,68 +159,7 @@ print  " Total global memory used: {0:0.0f} MB".format( float(initialFreeMemory 
 		    #np.int32, np.intp])
 
 
-###########################################################################
-###########################################################################
-def runDynamics( nParticles=1024*1024, nRuns=50, collisionsPerRun=1e2,  plotFinal=True ):
-  global usingAnimation 
-  #Start Simulation
-  print ""
-  print "Starting simulation"
-  if cudaP == "double": print "Using double precision"
-  print " nParticles: ", nParticles
-  print " nRuns: ", nRuns
-  print " Collisions per run: ", collisionsPerRun
-  print " TOTAL Iterations per particle: ", collisionsPerRun*(nRuns) 
-  print "  Particles for plot: ", particlesForPlot
-  print "  Collisions for plot: ", collisionsForPlot
-  print ""
 
-  start = cuda.Event()
-  end = cuda.Event()
-  totalTime = 0
-  secs = 0
-
-  #Itererate for a particle bunch
-  usingAnimation = False
-  changeInitial = True
-  savePos = False
-  start.record()
-  for runNumber in range(nRuns+1):
-    if runNumber == nRuns:
-      savePos=True
-      changeInitial = False
-      collisionsPerRun = collisionsForPlot
-    if runNumber%(1)==0:
-      secs = start.time_till(end.record().synchronize())*1e-3
-      totalTime += secs
-      printProgress( runNumber, nRuns, 1, secs )
-      start.record()
-    mainKernel(np.uint8(usingAnimation), np.int32(nParticles), np.int32(collisionsPerRun), np.int32(nCircles), circlesCaract_d, np.int32(nLines), linesCaract_d,
-	      initialPosX_d, initialPosY_d, initialVelX_d, initialVelY_d, initialRegionX_d, initialRegionY_d,
-	      outPosX_d, outPosY_d, times_d,
-	      np.float32(deltaTime_anim), timesIdx_anim_d,
-	      np.float32( deltaTime_radius ), timesIdx_rad_d, timesOccupancy_d, radiusAll_d,
-	      np.int32(savePos), np.int32(particlesForPlot), np.int32(changeInitial),
-	      np.intp(0),  grid=grid, block=block)
-  print "\n\nFinished in : {0:.4f}  sec\n".format( float( totalTime ) ) 
-
-  #Get the results
-  outPosX = np.zeros(nData + particlesForPlot)
-  outPosY = np.zeros(nData + particlesForPlot)
-  #Add initial positions to the array
-  outPosX[:particlesForPlot] = initialPosX_d.get()[:particlesForPlot] + initialRegionX_d.get()[:particlesForPlot]
-  outPosY[:particlesForPlot] = initialPosY_d.get()[:particlesForPlot] + initialRegionY_d.get()[:particlesForPlot]
-  outPosX[particlesForPlot:] = outPosX_d.get()
-  outPosY[particlesForPlot:] = outPosY_d.get()
-  outPosX = outPosX.reshape(collisionsForPlot+1,particlesForPlot).transpose()
-  outPosY = outPosY.reshape(collisionsForPlot+1,particlesForPlot).transpose()
-  pos = (outPosX, outPosY)
-  rAvg = (np.sqrt(outPosX[:,-1]*outPosX[:,-1] + outPosY[:,-1]*outPosY[:,-1])).sum()/particlesForPlot
-  times = times_d.get()
-  if plotFinal:  plotPosGnuplot(pos)
-  #return pos, rAvg, times
-###########################################################################
-###########################################################################
 
 ##Get mean radius over time
 #meanRadius = np.array([cudaPre( gpuarray.sum(radiusAll_d[i*nParticles:(i+1)*nParticles], dtype = cudaPre).get() ) for i in range(maxTimeIndx)])
@@ -235,10 +181,11 @@ def animationUpdate():
 	      np.int32(0), np.int32(0), np.int32(1),
 	      np.intp(pAnim.cuda_VOB_ptr),  grid=grid, block=block)
   nAnimIter += 1
-  if nAnimIter%50 == 0: plotData()
+  if nAnimIter%50 == 0   and plotting: plotData( nAnimIter )
 
-def plotData():
+def plotData( nIter ):
   global radiusAll_h, timesOccupancy_h
+  #if plotting: plt.ioff()
   timesOccupancy_h = timesOccupancy_d.get()
   fig = plt.figure(0)
   fig.clf()
@@ -250,6 +197,7 @@ def plotData():
   ax.set_yscale('log')
   ax.set_ylabel(r"Time occupancy")
   ax.set_xlabel(r"Time")
+  plt.title(r"nParticles={0}    nCollisions={1}".format(nParticles, nIter*collisionsPerRun))
 
   
   radiusAll_h = radiusAll_d.get()
@@ -259,7 +207,10 @@ def plotData():
   ax = plt.gca()
   ax.set_ylabel(r"$\overline{ r^2 } $", fontsize=20, rotation="horizontal")
   ax.set_xlabel(r"Time")
+  plt.title(r"nParticles={0}    nCollisions={1}".format(nParticles, nIter*collisionsPerRun))
+  #if plotting: plt.ion()
   plt.draw()
+  
 
 
 
@@ -270,50 +221,69 @@ if usingAnimation:
   plt.show()
   pAnim.startAnimation()
 
-runDynamics()
+###########################################################################
+###########################################################################
+#Start Simulation
+
+usingAnimation = False
+changeInitial = True
+savePos = False
 
 
+if plotting: plt.ion(), plt.show()
 
+print ""
+print "Starting simulation"
+if cudaP == "double": print "Using double precision"
+print " nParticles: ", nParticles
+print " nRuns: ", nRuns
+print " Collisions per run: ", collisionsPerRun
+print " TOTAL Iterations per particle: ", collisionsPerRun*(nRuns) 
+print "  Particles for plot: ", particlesForPlot
+print "  Collisions for plot: ", collisionsForPlot
+print ""
 
+start = cuda.Event()
+end = cuda.Event()
+totalTime = 0
+secs = 0
+start.record()
+for runNumber in range(nRuns+1):
+  if runNumber == nRuns:
+    savePos=True
+    changeInitial = False
+    collisionsPerRun = collisionsForPlot
+  if runNumber%(1)==0:
+    secs = start.time_till(end.record().synchronize())*1e-3
+    totalTime += secs
+    printProgress( runNumber, nRuns, 1, secs )
+    start.record()
+  mainKernel(np.uint8(usingAnimation), np.int32(nParticles), np.int32(collisionsPerRun), np.int32(nCircles), circlesCaract_d, np.int32(nLines), linesCaract_d,
+	    initialPosX_d, initialPosY_d, initialVelX_d, initialVelY_d, initialRegionX_d, initialRegionY_d,
+	    outPosX_d, outPosY_d, times_d,
+	    np.float32(deltaTime_anim), timesIdx_anim_d,
+	    np.float32( deltaTime_radius ), timesIdx_rad_d, timesOccupancy_d, radiusAll_d,
+	    np.int32(savePos), np.int32(particlesForPlot), np.int32(changeInitial),
+	    np.intp(0),  grid=grid, block=block)
+  if runNumber%2==0  and plotting: plotData( runNumber )
+print "\n\nFinished in : {0:.4f}  sec\n".format( float( totalTime ) ) 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#Get the results
+outPosX = np.zeros(nData + particlesForPlot)
+outPosY = np.zeros(nData + particlesForPlot)
+#Add initial positions to the array
+outPosX[:particlesForPlot] = initialPosX_d.get()[:particlesForPlot] + initialRegionX_d.get()[:particlesForPlot]
+outPosY[:particlesForPlot] = initialPosY_d.get()[:particlesForPlot] + initialRegionY_d.get()[:particlesForPlot]
+outPosX[particlesForPlot:] = outPosX_d.get()
+outPosY[particlesForPlot:] = outPosY_d.get()
+outPosX = outPosX.reshape(collisionsForPlot+1,particlesForPlot).transpose()
+outPosY = outPosY.reshape(collisionsForPlot+1,particlesForPlot).transpose()
+pos = (outPosX, outPosY)
+rAvg = (np.sqrt(outPosX[:,-1]*outPosX[:,-1] + outPosY[:,-1]*outPosY[:,-1])).sum()/particlesForPlot
+times = times_d.get()
+if plotFinal:  plotPosGnuplot(pos)
+#return pos, rAvg, times
+###########################################################################
+###########################################################################
 
 

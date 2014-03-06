@@ -55,7 +55,7 @@ __global__ void main_kernel( const unsigned char usingAnimation, const int nPart
   int tid = blockDim.x*blockIdx.x + threadIdx.x;
 //   int nThreads = blockDim.x * gridDim.x;
   
-  if (tid < nParticles){
+  while (tid < nParticles){
     
     //Initialize particle position and velocity
     Vector2D pos( initPosX[tid], initPosY[tid] );
@@ -171,7 +171,10 @@ __global__ void main_kernel( const unsigned char usingAnimation, const int nPart
     __syncthreads();
     atomicAdd( &(timesOccupancy[threadIdx.x]), timesOccupancy_sh[threadIdx.x] );
     atomicAdd( &(radiusAll[threadIdx.x]), radiusAll_sh[threadIdx.x]/nParticles );
+    
+    tid += blockDim.x * gridDim.x;
   }
+  
 }
   
 }//Extern C end
