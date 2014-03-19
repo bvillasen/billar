@@ -52,7 +52,7 @@ for option in sys.argv:
   if option == "float": cudaP = "float"
   if option.find("dev") >= 0 : devN = int(option[-1])
 
-if usingAnimation: import points2D as pAnim #points3D Animation
+if usingAnimation: import points2D as pAnim #points2D Animation
 precision  = {"float":np.float32, "double":np.float64} 
 cudaPre = precision[cudaP]
 
@@ -87,14 +87,15 @@ geometry.addLine( ( 0.5,  0), ( 1, 0), type=1 )
 geometry.addLine( ( 0, -0.5), ( 0,-1), type=1 )
 nCircles, circlesCaract_h, nLines, linesCaract_h = geometry.prepareCUDA( cudaP=cudaP )
 
-pAnim.nPoints = nParticles
-pAnim.viewXmin, pAnim.viewXmax = -2500., 2500.
-pAnim.viewYmin, pAnim.viewYmax = -2500., 2500.
-pAnim.viewZmin, pAnim.viewZmax = -1, 1
+if usingAnimation:
+  pAnim.nPoints = nParticles
+  pAnim.viewXmin, pAnim.viewXmax = -2500., 2500.
+  pAnim.viewYmin, pAnim.viewYmax = -2500., 2500.
+  pAnim.viewZmin, pAnim.viewZmax = -1, 1
 
-pAnim.showGrid = True
-pAnim.nPointsPerCircle = 50
-pAnim.cirPos, pAnim.cirCol, pAnim.nCirclesGrid = geometry.circlesGrid( radius, -30., 30., -20., 20., nPoints=pAnim.nPointsPerCircle)
+  pAnim.showGrid = True
+  pAnim.nPointsPerCircle = 50
+  pAnim.cirPos, pAnim.cirCol, pAnim.nCirclesGrid = geometry.circlesGrid( radius, -30., 30., -20., 20., nPoints=pAnim.nPointsPerCircle)
 #print pAnim.nCirclesGrid
 ###########################################################################
 ###########################################################################

@@ -3,7 +3,7 @@ from OpenGL.GL import *
 from OpenGL.GLUT import *
 from OpenGL.GLU import *
 from OpenGL.GL.ARB.vertex_buffer_object import *
-import pyglew as glew
+#import pyglew as glew
 import ctypes
 import pycuda.driver as cuda
 import pycuda.gl as cuda_gl
@@ -64,7 +64,7 @@ def initGL():
   global GL_initialized
   if GL_initialized: return
   glutInit()
-  glew.glewInit()
+  #glew.glewInit()
   GL_initialized = True
   print "OpenGL initialized"
   #openGLWindow()
