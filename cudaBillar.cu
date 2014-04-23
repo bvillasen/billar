@@ -48,14 +48,15 @@ __global__ void main_kernel( const unsigned char usingAnimation, const int nPart
 			     const int nCircles, cudaP *circlesCaract, const int nLines, cudaP *linesCaract,
 			     cudaP *initPosX, cudaP *initPosY, cudaP *initVelX, cudaP *initVelY, int *initRegionX, int *initRegionY,
 			     cudaP *outPosX, cudaP *outPosY, cudaP *times,
-			     float deltaTime_anim, int *timesIdx_anim,  
-			     float deltaTime_rad, int *timesIdx_rad, int *timesOccupancy, float *radiusAll,
-			     int savePosForPlot, int particlesForSave, int changeInitial, 
+			     const float deltaTime_anim, int *timesIdx_anim,  
+			     const float deltaTime_rad, int *timesIdx_rad, int *timesOccupancy, float *radiusAll,
+			     const unsigned char savePosForPlot, const int particlesForSave, const unsigned char changeInitial, 
 			     float *cuda_VOB){
   int tid = blockDim.x*blockIdx.x + threadIdx.x;
 //   int nThreads = blockDim.x * gridDim.x;
   
   while (tid < nParticles){
+    
     
     //Initialize particle position and velocity
     Vector2D pos( initPosX[tid], initPosY[tid] );
@@ -65,6 +66,9 @@ __global__ void main_kernel( const unsigned char usingAnimation, const int nPart
     cudaP particleTime = times[tid];
     int timeIdx_anim = timesIdx_anim[tid];
     int timeIdx_rad = timesIdx_rad[tid];
+//     
+    
+    
     
 //     //Initialize Obstacles in shared memory
 //     __shared__ Circle obstaclesCircle[ %(nCIRCLES)s ];
@@ -92,7 +96,8 @@ __global__ void main_kernel( const unsigned char usingAnimation, const int nPart
     timesOccupancy_sh[threadIdx.x] = 0;
     radiusAll_sh[threadIdx.x] = 0.f;
     __syncthreads();
-     
+    
+//     if ( timeIdx_rad >= %(TIME_INDEX_MAX)s ){
     int collideWith = -1;
     cudaP timeMin, timeTemp;
     for (int collisionNumber=0; collisionNumber<collisionsPerRun; collisionNumber++){
@@ -126,10 +131,10 @@ __global__ void main_kernel( const unsigned char usingAnimation, const int nPart
       }
     
       
-      if (particleTime >= timeIdx_rad*deltaTime_rad and timeIdx_rad< %(TIME_INDEX_MAX)s ){
-	move( pos, vel, timeIdx_rad*deltaTime_rad-particleTime );
-	atomicAdd( &(timesOccupancy_sh[timeIdx_rad]) , 1);
-	atomicAdd( &(radiusAll_sh[timeIdx_rad]) , float((pos.x+region[0])*(pos.x+region[0]) + (pos.y+region[1])*(pos.y+region[1])) );
+      if (particleTime >= (timeIdx_rad*deltaTime_rad) and timeIdx_rad <= %(TIME_INDEX_MAX)s ){
+	move( pos, vel, (timeIdx_rad*deltaTime_rad)-particleTime );
+	if ( timeIdx_rad < %(TIME_INDEX_MAX)s ) atomicAdd( &(timesOccupancy_sh[timeIdx_rad]) , 1);
+	atomicAdd( &(radiusAll_sh[timeIdx_rad-1]) , float( ( (pos.x+region[0])*(pos.x+region[0]) + (pos.y+region[1])*(pos.y+region[1]) ) ) );
 	move( pos, vel, particleTime-timeIdx_rad*deltaTime_rad );
 	timeIdx_rad +=1;
       }
@@ -153,6 +158,7 @@ __global__ void main_kernel( const unsigned char usingAnimation, const int nPart
     
     //Save data in animation buffer
     if (usingAnimation){
+      timesIdx_anim[tid] = timeIdx_anim;
       cuda_VOB[2*tid] = posX_sh[threadIdx.x];
       cuda_VOB[2*tid + 1] = posY_sh[threadIdx.x];
     }
@@ -165,7 +171,6 @@ __global__ void main_kernel( const unsigned char usingAnimation, const int nPart
       initRegionX[tid] = region[0];
       initRegionY[tid] = region[1];
       times[tid] = particleTime;
-      timesIdx_anim[tid] = timeIdx_anim;
       timesIdx_rad[tid] = timeIdx_rad;
     }
     __syncthreads();
