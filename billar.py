@@ -54,6 +54,11 @@ if usingAnimation: import points2D as pAnim #points2D Animation
 precision  = {"float":np.float32, "double":np.float64} 
 cudaPre = precision[cudaP]
 
+if int(np.log2(nParticles)) != np.log2(nParticles):
+  choice = int( raw_input( "\nERROR: Number of particles is not a 2-power.\nChose: \n 1) {0}\n 2) {1}\nChoice: ".format(2**int(np.log2(nParticles)), 2**int(1+np.log2(nParticles)) )) )
+  if choice == 1: nParticles = 2**int(np.log2(nParticles))
+  if choice == 2: nParticles = 2**int(np.log2(nParticles)+1)
+
 #Set CUDA thread grid dimentions
 block = ( 128, 1, 1 )
 maxThreads = 1024*1024*2
@@ -236,7 +241,7 @@ launchCouter = 0
 start.record()
 while occupancy < maxTimeIndx:
   printProgressTime( occupancy, maxTimeIndx, start.time_till(end.record().synchronize())*1e-3 )
-  occupancy = sum(timesOccupancy_d.get()==nParticles)
+  occupancy = sum(timesOccupancy_d.get()>=nParticles)
   mainKernel(np.uint8(usingAnimation), np.int32(nParticles), np.int32(collisionsPerRun), np.int32(nCircles), circlesCaract_d, np.int32(nLines), linesCaract_d,
 	    initialPosX_d, initialPosY_d, initialVelX_d, initialVelY_d, initialRegionX_d, initialRegionY_d,
 	    outPosX_d, outPosY_d, times_d,
