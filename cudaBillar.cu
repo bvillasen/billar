@@ -8,13 +8,13 @@ __device__ void move( Vector2D &pos, Vector2D &vel, cudaP time ){
   pos = pos + deltaPos ;
 }
 
-// __device__ void initCircles( int tid, Circle *obstaclesCircle, cudaP *cCrt ){
-//   obstaclesCircle[tid] = Circle( Vector2D(cCrt[4*tid+0], cCrt[4*tid+1] ), cCrt[4*tid+2], int(cCrt[4*tid+3]) );
-// }
-// 
-// __device__ void initLines( int tid, Line *obstaclesLine, cudaP *lCrt ){
-//   obstaclesLine[tid] = Line( Vector2D(lCrt[5*tid+0], lCrt[5*tid+1] ), Vector2D(lCrt[5*tid+2], lCrt[5*tid+3] ), int(lCrt[5*tid+4]) );
-// }
+__device__ void initCircles( int tid, Circle *obstaclesCircle, cudaP *cCrt ){
+  obstaclesCircle[tid] = Circle( Vector2D(cCrt[4*tid+0], cCrt[4*tid+1] ), cCrt[4*tid+2], int(cCrt[4*tid+3]) );
+}
+
+__device__ void initLines( int tid, Line *obstaclesLine, cudaP *lCrt ){
+  obstaclesLine[tid] = Line( Vector2D(lCrt[5*tid+0], lCrt[5*tid+1] ), Vector2D(lCrt[5*tid+2], lCrt[5*tid+3] ), int(lCrt[5*tid+4]) );
+}
 
 // __device__ void checkPos( Vector2D &pos, Vector2D &vel, bool &restart){
 // //   bool changed = false;
@@ -66,29 +66,25 @@ __global__ void main_kernel( const unsigned char usingAnimation, const int nPart
     cudaP particleTime = times[tid];
     int timeIdx_anim = timesIdx_anim[tid];
     int timeIdx_rad = timesIdx_rad[tid];
-//     
     
-    
-    
-//     //Initialize Obstacles in shared memory
-//     __shared__ Circle obstaclesCircle[ %(nCIRCLES)s ];
-//     __shared__ Line obstaclesLine[ %(nLINES)s ];
-//     if ( threadIdx.x < nCircles ) initCircles( threadIdx.x, obstaclesCircle, circlesCaract);
-//     if ( threadIdx.x < nLines) initLines( threadIdx.x, obstaclesLine, linesCaract );
-//     __syncthreads();
-    
-    //Initialize Obstacles
-    Circle obstaclesCircle[ %(nCIRCLES)s ];
-    Line obstaclesLine[ %(nLINES)s ];
-    for (int i=0; i<nCircles; i++)
-      obstaclesCircle[i] = Circle( Vector2D(circlesCaract[4*i+0], circlesCaract[4*i+1] ), circlesCaract[4*i+2], int(circlesCaract[4*i+3]) );
-    for (int i=0; i<nLines; i++)
-      obstaclesLine[i] = Line( Vector2D(linesCaract[5*i+0], linesCaract[5*i+1] ), Vector2D(linesCaract[5*i+2], linesCaract[5*i+3] ), int(linesCaract[5*i+4]) );
+    //Initialize Obstacles in shared memory
+    __shared__ Circle obstaclesCircle[ %(nCIRCLES)s ];
+    __shared__ Line obstaclesLine[ %(nLINES)s ];
+    if ( threadIdx.x < nCircles ) initCircles( threadIdx.x, obstaclesCircle, circlesCaract);
+    if ( threadIdx.x < nLines) initLines( threadIdx.x, obstaclesLine, linesCaract );
+    __syncthreads();
+   
+//     //Initialize Obstacles
+//     Circle obstaclesCircle[ %(nCIRCLES)s ];
+//     Line obstaclesLine[ %(nLINES)s ];
+//     for (int i=0; i<nCircles; i++)
+//       obstaclesCircle[i] = Circle( Vector2D(circlesCaract[4*i+0], circlesCaract[4*i+1] ), circlesCaract[4*i+2], int(circlesCaract[4*i+3]) );
+//     for (int i=0; i<nLines; i++)
+//       obstaclesLine[i] = Line( Vector2D(linesCaract[5*i+0], linesCaract[5*i+1] ), Vector2D(linesCaract[5*i+2], linesCaract[5*i+3] ), int(linesCaract[5*i+4]) );
 
     //Initialize shared array for position sampling
     __shared__ float posX_sh[ %(THREADS_PER_BLOCK)s ];
     __shared__ float posY_sh[ %(THREADS_PER_BLOCK)s ];
-//     for (int i=0; i<timeIdxMax; i++){
     posX_sh[threadIdx.x] = float(pos.x + region[0]);
     posY_sh[threadIdx.x] = float(pos.y + region[1]);
     __shared__ int timesOccupancy_sh[ %(TIME_INDEX_MAX)s ];
