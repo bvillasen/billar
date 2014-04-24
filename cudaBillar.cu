@@ -127,9 +127,9 @@ __global__ void main_kernel( const unsigned char usingAnimation, const int nPart
       }
     
       
-      if (particleTime >= (timeIdx_rad*deltaTime_rad) and timeIdx_rad <= %(TIME_INDEX_MAX)s ){
+      if (particleTime >= (timeIdx_rad*deltaTime_rad) and ( timeIdx_rad <= %(TIME_INDEX_MAX)s ) ){
 	move( pos, vel, (timeIdx_rad*deltaTime_rad)-particleTime );
-	if ( timeIdx_rad < %(TIME_INDEX_MAX)s ) atomicAdd( &(timesOccupancy_sh[timeIdx_rad]) , 1);
+	atomicAdd( &(timesOccupancy_sh[timeIdx_rad-1]) , 1);
 	atomicAdd( &(radiusAll_sh[timeIdx_rad-1]) , float( ( (pos.x+region[0])*(pos.x+region[0]) + (pos.y+region[1])*(pos.y+region[1]) ) ) );
 	move( pos, vel, particleTime-timeIdx_rad*deltaTime_rad );
 	timeIdx_rad +=1;

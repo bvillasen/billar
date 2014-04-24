@@ -41,6 +41,7 @@ showKernelMemInfo = False
 for option in sys.argv:
   if option.find("part")>=0 : nParticles = int(option[option.find("=")+1:])
   if option.find("time")>=0 : maxTime = float(option[option.find("=")+1:])
+  if option.find("iter")>=0 : collisionsPerRun = int(option[option.find("=")+1:])
   if option.find("anim") >=0: usingAnimation = True
   if option.find("mem") >=0: showKernelMemInfo = True
   if option.find("plot") >=0: plotting = True
@@ -148,7 +149,7 @@ times_d = gpuarray.to_gpu( np.zeros(nParticles).astype(cudaPre) )
 timesIdx_anim_d = gpuarray.to_gpu( np.zeros(nParticles, dtype=np.int32) )
 timesIdx_rad_d = gpuarray.to_gpu( np.ones(nParticles, dtype=np.int32) )
 timesOccupancy_h = np.zeros(maxTimeIndx).astype(np.int32)
-timesOccupancy_h[0] = nParticles
+#timesOccupancy_h[0] = nParticles
 timesOccupancy_d = gpuarray.to_gpu( timesOccupancy_h  )
 timesForRadius = deltaTime_radius*( np.arange(maxTimeIndx) + 1 )
 radiusAll_h = np.zeros(maxTimeIndx).astype(np.float32)
@@ -198,12 +199,14 @@ changeInitial = True
 savePos = False
 start = cuda.Event()
 end = cuda.Event()
-occupancy = 0
+occupancyOld, occupancy = 0, 0
 launchCouter = 0
 start.record()
-while occupancy < maxTimeIndx:
-  printProgressTime( occupancy, maxTimeIndx, start.time_till(end.record().synchronize())*1e-3 )
+while occupancyOld < maxTimeIndx:
+  #print "############################################################"
   occupancy = sum(timesOccupancy_d.get()>=nParticles)
+  if occupancy>occupancyOld or occupancy==0: printProgressTime( occupancy, maxTimeIndx, start.time_till(end.record().synchronize())*1e-3 )
+  occupancyOld = occupancy
   mainKernel(np.uint8(usingAnimation), np.int32(nParticles), np.int32(collisionsPerRun), np.int32(nCircles), circlesCaract_d, np.int32(nLines), linesCaract_d,
 	    initialPosX_d, initialPosY_d, initialVelX_d, initialVelY_d, initialRegionX_d, initialRegionY_d,
 	    outPosX_d, outPosY_d, times_d,

@@ -3,9 +3,10 @@ import sys, time, os, inspect, datetime
 #import h5py as h5
 import matplotlib.pyplot as plt
 
-def plotData( nParticles, collisionsPerRun, nIter, timesForRadius, radiusAll_d, timesOccupancy_d ):
+def plotData( nParticles, collisionsPerRun, nIter, timesForRadius, radiusAll, timesOccupancy, device=True):
   #if plotting: plt.ioff()
-  timesOccupancy_h = timesOccupancy_d.get()
+  if device: timesOccupancy_h = timesOccupancy.get()
+  else: timesOccupancy_h = timesOccupancy
   fig = plt.figure(0)
   fig.clf()
   #mngr = plt.get_current_fig_manager()
@@ -18,7 +19,8 @@ def plotData( nParticles, collisionsPerRun, nIter, timesForRadius, radiusAll_d, 
   ax.set_xlabel(r"Time")
   plt.title(r"nParticles={0}    nCollisions={1}".format(nParticles, nIter*collisionsPerRun))
 
-  radiusAll_h = radiusAll_d.get()
+  if device: radiusAll_h = radiusAll.get()
+  else: radiusAll_h = radiusAll
   fig = plt.figure(1)
   fig.clf()
   plt.plot( timesForRadius, radiusAll_h )
@@ -34,11 +36,11 @@ def plotData( nParticles, collisionsPerRun, nIter, timesForRadius, radiusAll_d, 
   plt.xscale("log")
   plt.draw()
 
-##Load Data
-#times, avrRadius = np.loadtxt( "data/avrRadius_n2097152_t1000_d.dat" )
-
-
-#fig = plt.figure(0)
-#plt.plot( times, avrRadius/times )
-#plt.xscale("log")
-#plt.show()
+if __name__ == "__main__":
+  #Load Data
+  times, avrRadius = np.loadtxt( "data/avrRadius_n2097152_t10000_d.dat" )
+  
+  fig = plt.figure(0)
+  plt.plot( times, avrRadius/times )
+  plt.xscale("log")
+  plt.show()
