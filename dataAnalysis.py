@@ -37,10 +37,14 @@ def plotData( nParticles, collisionsPerRun, nIter, timesForRadius, radiusAll, ti
   plt.draw()
 
 if __name__ == "__main__":
+  nParticles = 1024*1024*2*2
+  time = 1000
+  
   #Load Data
-  times, avrRadius = np.loadtxt( "data/avrRadius_n2097152_t10000_d.dat" )
+  times, avrRadius = np.loadtxt( "data/avrRadius_n{0}_t{1}_d.dat".format(nParticles, time) )
   
   fig = plt.figure(0)
   plt.plot( times, avrRadius/times )
   plt.xscale("log")
+  plt.title(r"nParticles={0}    time={1}".format(nParticles, time))
   plt.show()
