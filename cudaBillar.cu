@@ -72,7 +72,7 @@ __global__ void main_kernel( const unsigned char usingAnimation, const int nPart
 
     int collideWith = -1;
     cudaP timeMin, timeTemp;
-    if ( timeIdx_rad <= %(TIME_INDEX_MAX)s ){
+    if ( timeIdx_rad <= %(TIME_INDEX_MAX)s or usingAnimation ){
       for (int collisionNumber=0; collisionNumber<collisionsPerRun; collisionNumber++){
 	timeMin = 1e20;
 	for (int i=0; i<nCircles; i++){

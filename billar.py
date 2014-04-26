@@ -69,8 +69,7 @@ deltaTime_anim = 5
 
 def configAnimation():
   global collisionsPerRun, deltaTime_radius, deltaTime_anim
-  collisionsPerRun = 10
-  deltaTime_radius = 100
+  collisionsPerRun = 20
   deltaTime_anim = 3
 ###########################################################################
 ###########################################################################
@@ -203,7 +202,6 @@ occupancyOld, occupancy = 0, 0
 launchCouter = 0
 start.record()
 while occupancyOld < maxTimeIndx:
-  #print "############################################################"
   occupancy = sum(timesOccupancy_d.get()>=nParticles)
   if occupancy>occupancyOld or occupancy==0: printProgressTime( occupancy, maxTimeIndx, start.time_till(end.record().synchronize())*1e-3 )
   occupancyOld = occupancy
