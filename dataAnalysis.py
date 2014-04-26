@@ -1,6 +1,6 @@
 import numpy as np
 import sys, time, os, inspect, datetime
-#import h5py as h5
+import h5py as h5
 import matplotlib.pyplot as plt
 
 def plotData( nParticles, collisionsPerRun, nIter, timesForRadius, radiusAll, timesOccupancy, device=True):
@@ -34,17 +34,37 @@ def plotData( nParticles, collisionsPerRun, nIter, timesForRadius, radiusAll, ti
   fig = plt.figure(2)
   plt.plot( timesForRadius, radiusAll_h/timesForRadius )
   plt.xscale("log")
+  plt.title(r"nParticles={0}    time={1}".format(nParticles, timesForRadius[-1]))
+  ax = plt.gca()
+  ax.set_ylabel(r"$\overline{ r^2 }/t $", fontsize=20, rotation="horizontal")
+  ax.set_xlabel(r"log(t)")
   plt.draw()
 
+
+nParticles = 1024*1024*2
+time = 1000
+
+for option in sys.argv:
+  if option.find(".hdf5")>=0 : 
+    dataFileName = option
+    nParticles = int(option[option.find("n")+1:option.find("_")])
+    time = int(option[option.rfind("t")+1:option.rfind("_")])
+
 if __name__ == "__main__":
-  nParticles = 1024*1024*2*4
-  time = 10000
-  
+
   #Load Data
-  times, avrRadius = np.loadtxt( "data/avrRadius_n{0}_t{1}_d.dat".format(nParticles, time) )
+  print '\nLoading data... \n particles: {0}\n time: {1}\n'.format(nParticles, time)
+  dataFile = h5.File( dataFileName ,'r')
+  times = dataFile.get("timesForRadius")[...]
+  avrRadius = dataFile.get("avrRadius")[...]
+  dataFile.close()
+  #times, avrRadius = np.loadtxt( "data/avrRadius_n{0}_t{1}_d.dat".format(nParticles, time) )
   
   fig = plt.figure(0)
   plt.plot( times, avrRadius/times )
   plt.xscale("log")
   plt.title(r"nParticles={0}    time={1}".format(nParticles, time))
+  ax = plt.gca()
+  ax.set_ylabel(r"$\overline{ r^2 }/t $", fontsize=20, rotation="horizontal")
+  ax.set_xlabel(r"log(t)")
   plt.show()

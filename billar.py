@@ -1,6 +1,6 @@
 import numpy as np
 import sys, time, os, inspect, datetime
-#import h5py as h5
+import h5py as h5
 import matplotlib.pyplot as plt
 import pycuda.driver as cuda
 from pycuda.compiler import SourceModule
@@ -235,10 +235,17 @@ if plotFinal:
 #Save data
 dataDir = currentDirectory + "/data"
 ensureDirectory( dataDir )
-data= np.array([ timesForRadius, radiusAll_d.get() ])
-dataFile = dataDir + "/avrRadius_n{0}_t{1:.0f}_{2}.dat".format(nParticles, float(maxTime), cudaP[0])
-np.savetxt( dataFile, data )
-print "Data Saved: ", dataFile, "\n"
+#data= np.array([ timesForRadius, radiusAll_d.get() ])
+dataFileName = dataDir + "/n{0}_t{1:.0f}_{2}.hdf5".format(nParticles, float(maxTime), cudaP[0])
+dataFile = h5.File(dataFileName,'w')
+dataFile.create_dataset( "posParticles", data=np.array([initialPosX_d.get(), initialPosY_d.get() ]), compression='lzf')
+dataFile.create_dataset( "velParticles", data=np.array([initialVelX_d.get(), initialVelY_d.get() ]), compression='lzf')
+dataFile.create_dataset( "regParticles", data=np.array([initialRegionX_d.get(), initialRegionY_d.get() ]), compression='lzf')
+dataFile.create_dataset( "timesForRadius", data=timesForRadius, compression='lzf')
+dataFile.create_dataset( "avrRadius", data=radiusAll_d.get(), compression='lzf')
+dataFile.close()
+#np.savetxt( dataFile, data )
+print "Data Saved: ", dataFileName, "\n"
 
 #cuda.stop_profiler()
 if plotting: 

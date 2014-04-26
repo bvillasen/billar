@@ -29,31 +29,30 @@ __global__ void main_kernel( const unsigned char usingAnimation, const int nPart
   int tid = blockDim.x*blockIdx.x + threadIdx.x;
   int tid_b = threadIdx.x;
   
-//     //Initialize Obstacles
-//     Circle obstaclesCircle[ %(nCIRCLES)s ];
-//     Line obstaclesLine[ %(nLINES)s ];
-//     for (int i=0; i<nCircles; i++)
-//       obstaclesCircle[i] = Circle( Vector2D(circlesCaract[4*i+0], circlesCaract[4*i+1] ), circlesCaract[4*i+2], int(circlesCaract[4*i+3]) );
-//     for (int i=0; i<nLines; i++)
-//       obstaclesLine[i] = Line( Vector2D(linesCaract[5*i+0], linesCaract[5*i+1] ), Vector2D(linesCaract[5*i+2], linesCaract[5*i+3] ), int(linesCaract[5*i+4]) );
+  //Initialize Obstacles
+  Circle obstaclesCircle[ %(nCIRCLES)s ];
+  Line obstaclesLine[ %(nLINES)s ];
+  for (int i=0; i<nCircles; i++)
+    obstaclesCircle[i] = Circle( Vector2D(circlesCaract[4*i+0], circlesCaract[4*i+1] ), circlesCaract[4*i+2], int(circlesCaract[4*i+3]) );
+  for (int i=0; i<nLines; i++)
+    obstaclesLine[i] = Line( Vector2D(linesCaract[5*i+0], linesCaract[5*i+1] ), Vector2D(linesCaract[5*i+2], linesCaract[5*i+3] ), int(linesCaract[5*i+4]) );
 
-    //Initialize Obstacles in shared memory
-  __shared__ Circle obstaclesCircle[ %(nCIRCLES)s ];
-  __shared__ Line obstaclesLine[ %(nLINES)s ];
-  if ( threadIdx.x < nCircles ) initCircles( threadIdx.x, obstaclesCircle, circlesCaract);
-  if ( threadIdx.x < nLines) initLines( threadIdx.x, obstaclesLine, linesCaract );
-//   __syncthreads();
+//   //Initialize Obstacles in shared memory
+//   __shared__ Circle obstaclesCircle[ %(nCIRCLES)s ];
+//   __shared__ Line obstaclesLine[ %(nLINES)s ];
+//   if ( threadIdx.x < nCircles ) initCircles( threadIdx.x, obstaclesCircle, circlesCaract);
+//   if ( threadIdx.x < nLines) initLines( threadIdx.x, obstaclesLine, linesCaract );
+  //Initialize shared array for position sampling
+  __shared__ float posY_sh[ %(THREADS_PER_BLOCK)s ];
+  __shared__ float posX_sh[ %(THREADS_PER_BLOCK)s ];
   __shared__ int timesOccupancy_sh[ %(TIME_INDEX_MAX)s ];
-  __shared__ float radiusAll_sh[ %(TIME_INDEX_MAX)s ];
+  __shared__ float radiusAll_sh[ %(TIME_INDEX_MAX)s ];  
   while ( tid_b < %(TIME_INDEX_MAX)s ){
     timesOccupancy_sh[ tid_b ] = 0;
     radiusAll_sh[ tid_b ] = 0.f;
     tid_b += blockDim.x;
   }
   tid_b = threadIdx.x;
-    //Initialize shared array for position sampling
-  __shared__ float posY_sh[ %(THREADS_PER_BLOCK)s ];
-  __shared__ float posX_sh[ %(THREADS_PER_BLOCK)s ];
   __syncthreads();
   
   while (tid < nParticles){
@@ -93,17 +92,14 @@ __global__ void main_kernel( const unsigned char usingAnimation, const int nPart
 	}
 	particleTime += timeMin;
 	move( pos, vel, timeMin );
-	if (usingAnimation){
-	  if (particleTime >= timeIdx_anim*deltaTime_anim ){
-	    if (timeIdx_anim != 0) move( pos, vel, timeIdx_anim*deltaTime_anim-particleTime );
-	    posX_sh[threadIdx.x] = pos.x + region[0];
-	    posY_sh[threadIdx.x] = pos.y + region[1];
-	    if (timeIdx_anim != 0) move( pos, vel, particleTime-timeIdx_anim*deltaTime_anim );
-	    timeIdx_anim +=1;
-	  }
+	if (usingAnimation and particleTime >= timeIdx_anim*deltaTime_anim){
+	  if (timeIdx_anim != 0) move( pos, vel, timeIdx_anim*deltaTime_anim-particleTime );
+	  posX_sh[threadIdx.x] = pos.x + region[0];
+	  posY_sh[threadIdx.x] = pos.y + region[1];
+	  if (timeIdx_anim != 0) move( pos, vel, particleTime-timeIdx_anim*deltaTime_anim );
+	  timeIdx_anim +=1;
 	}
       
-	
 	if (particleTime >= (timeIdx_rad*deltaTime_rad) and ( timeIdx_rad <= %(TIME_INDEX_MAX)s ) ){
 	  move( pos, vel, (timeIdx_rad*deltaTime_rad)-particleTime );
 	  atomicAdd( &(timesOccupancy_sh[timeIdx_rad-1]) , 1);
