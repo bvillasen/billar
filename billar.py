@@ -63,7 +63,7 @@ block = ( 128, 1, 1 )
 maxThreads = 1024*1024*2
 if nParticles <= maxThreads: grid = ( (nParticles - 1)//block[0] + 1, 1, 1 )
 else: grid = ( (maxThreads - 1)//block[0] + 1, 1, 1 )
-maxTimeIndx = block[0]    #Don't change 
+maxTimeIndx = block[0]*4   #Number of points for avrRadius sampling
 deltaTime_radius = float( maxTime )/maxTimeIndx
 deltaTime_anim = 5
 
