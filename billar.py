@@ -25,6 +25,7 @@ nParticles = 1024*1024*2
 collisionsPerRun = 1e2              #Number of collitions for each kernel launch
 #For time sampling
 maxTime = 1000.
+timeInital = 0.
 
 #For final plotting
 plotFinal = False
@@ -36,6 +37,9 @@ devN = None
 usingAnimation = False
 plotting = False
 showKernelMemInfo = False
+startFromData = False
+dataFileNameIn = ""
+
 
 #Read in-line parameters
 for option in sys.argv:
@@ -48,6 +52,11 @@ for option in sys.argv:
   if option == "double": cudaP = "double"
   if option == "float": cudaP = "float"
   if option.find("dev") >= 0 : devN = int(option[-1])
+  if option.find(".hdf5")>=0 : 
+    startFromData = True
+    dataFileNameIn = option
+    nParticles = int(option[option.find("n")+1:option.find("_")])
+    timeInital = float(option[option.rfind("t")+1:option.rfind("_")])
 
 if usingAnimation: import points2D as pAnim #points2D Animation
 precision  = {"float":np.float32, "double":np.float64} 
@@ -65,7 +74,7 @@ if nParticles <= maxThreads: grid = ( (nParticles - 1)//block[0] + 1, 1, 1 )
 else: grid = ( (maxThreads - 1)//block[0] + 1, 1, 1 )
 maxTimeIndx = block[0]*4   #Number of points for avrRadius sampling
 deltaTime_radius = float( maxTime )/maxTimeIndx
-deltaTime_anim = 5
+deltaTime_anim = 3
 
 def configAnimation():
   global collisionsPerRun, deltaTime_radius, deltaTime_anim
@@ -127,7 +136,7 @@ if showKernelMemInfo:
 nData = particlesForPlot*collisionsForPlot
 if not plotFinal: nData = 1
 print "Initializing CUDA memory"
-#np.random.seed(int(time.time()))  #Change numpy random seed
+np.random.seed(int(time.time()))  #Change numpy random seed
 initialFreeMemory = getFreeMemory( show=True )
 initialPosX_h = 0.49*np.ones(nParticles).astype(cudaPre)
 initialPosY_h = 0.49*np.ones(nParticles).astype(cudaPre)
@@ -148,15 +157,12 @@ times_d = gpuarray.to_gpu( np.zeros(nParticles).astype(cudaPre) )
 timesIdx_anim_d = gpuarray.to_gpu( np.zeros(nParticles, dtype=np.int32) )
 timesIdx_rad_d = gpuarray.to_gpu( np.ones(nParticles, dtype=np.int32) )
 timesOccupancy_h = np.zeros(maxTimeIndx).astype(np.int32)
-#timesOccupancy_h[0] = nParticles
 timesOccupancy_d = gpuarray.to_gpu( timesOccupancy_h  )
 timesForRadius = deltaTime_radius*( np.arange(maxTimeIndx) + 1 )
 radiusAll_h = np.zeros(maxTimeIndx).astype(np.float32)
 radiusAll_d = gpuarray.to_gpu( radiusAll_h )
-#output_h = np.zeros( nData ).astype(cudaPre)
 outPosX_d = gpuarray.to_gpu(  np.zeros( nData ).astype(cudaPre) )
 outPosY_d = gpuarray.to_gpu(  np.zeros( nData ).astype(cudaPre) )
-#nRestarts_d = gpuarray.to_gpu(np.zeros(nRuns+1).astype(np.int32))
 finalFreeMemory = getFreeMemory( show=False )
 print  " Total global memory used: {0:0.0f} MB\n".format( float(initialFreeMemory - finalFreeMemory)/1e6 ) 
 ###########################################################################
@@ -185,10 +191,8 @@ if plotting: plt.ion(), plt.show()
 print "Starting simulation"
 if cudaP == "double": print "Using double precision"
 print " nParticles: ", nParticles
-#print " nRuns: ", nRuns
 print " time: ", maxTime
 print " Collisions per kernel-launch: ", collisionsPerRun
-#print " TOTAL Iterations per particle: ", collisionsPerRun*(nRuns)
 if plotFinal:
   print "  Particles for final plot: ", particlesForPlot
   print "  Collisions for final plot: ", collisionsForPlot
@@ -199,7 +203,7 @@ savePos = False
 start = cuda.Event()
 end = cuda.Event()
 occupancyOld, occupancy = 0, 0
-launchCouter = 0
+launchCounter = 0
 start.record()
 while occupancyOld < maxTimeIndx:
   occupancy = sum(timesOccupancy_d.get()>=nParticles)
@@ -212,26 +216,11 @@ while occupancyOld < maxTimeIndx:
 	    np.float32( deltaTime_radius ), timesIdx_rad_d, timesOccupancy_d, radiusAll_d,
 	    np.uint8(savePos), np.int32(particlesForPlot), np.uint8(changeInitial),
 	    np.intp(0),  grid=grid, block=block)
-  launchCouter += 1
+  launchCounter += 1
   #if runNumber%5==0  and plotting: plotData( runNumber )
 print "\n\nFinished in : {0:.4f}  sec\n".format( float( start.time_till(end.record().synchronize())*1e-3 ) ) 
 
 #Get the results
-if plotFinal:
-  outPosX = np.zeros(nData + particlesForPlot)
-  outPosY = np.zeros(nData + particlesForPlot)
-  #Add initial positions to the array
-  outPosX[:particlesForPlot] = initialPosX_d.get()[:particlesForPlot] + initialRegionX_d.get()[:particlesForPlot]
-  outPosY[:particlesForPlot] = initialPosY_d.get()[:particlesForPlot] + initialRegionY_d.get()[:particlesForPlot]
-  outPosX[particlesForPlot:] = outPosX_d.get()
-  outPosY[particlesForPlot:] = outPosY_d.get()
-  outPosX = outPosX.reshape(collisionsForPlot+1,particlesForPlot).transpose()
-  outPosY = outPosY.reshape(collisionsForPlot+1,particlesForPlot).transpose()
-  pos = (outPosX, outPosY)
-  rAvg = (np.sqrt(outPosX[:,-1]*outPosX[:,-1] + outPosY[:,-1]*outPosY[:,-1])).sum()/particlesForPlot
-  times = times_d.get()
-  plotPosGnuplot(pos)
-
 #Save data
 dataDir = currentDirectory + "/data"
 ensureDirectory( dataDir )
@@ -247,9 +236,24 @@ dataFile.close()
 #np.savetxt( dataFile, data )
 print "Data Saved: ", dataFileName, "\n"
 
+if plotFinal:
+  outPosX = np.zeros(nData + particlesForPlot)
+  outPosY = np.zeros(nData + particlesForPlot)
+  #Add initial positions to the array
+  outPosX[:particlesForPlot] = initialPosX_d.get()[:particlesForPlot] + initialRegionX_d.get()[:particlesForPlot]
+  outPosY[:particlesForPlot] = initialPosY_d.get()[:particlesForPlot] + initialRegionY_d.get()[:particlesForPlot]
+  outPosX[particlesForPlot:] = outPosX_d.get()
+  outPosY[particlesForPlot:] = outPosY_d.get()
+  outPosX = outPosX.reshape(collisionsForPlot+1,particlesForPlot).transpose()
+  outPosY = outPosY.reshape(collisionsForPlot+1,particlesForPlot).transpose()
+  pos = (outPosX, outPosY)
+  rAvg = (np.sqrt(outPosX[:,-1]*outPosX[:,-1] + outPosY[:,-1]*outPosY[:,-1])).sum()/particlesForPlot
+  times = times_d.get()
+  plotPosGnuplot(pos)
+
 #cuda.stop_profiler()
 if plotting: 
-  plotData( nParticles, collisionsPerRun, launchCouter, timesForRadius, radiusAll_d, timesOccupancy_d )
+  plotData( nParticles, collisionsPerRun, launchCounter, timesForRadius, radiusAll_d, timesOccupancy_d )
   raw_input( "Press ENTER to exit\n")
 ###########################################################################
 ###########################################################################
