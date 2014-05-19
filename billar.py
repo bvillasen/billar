@@ -129,7 +129,7 @@ cudaCode = SourceModule(cudaCodeString, no_extern_c=True, include_dirs=[currentD
 mainKernel = cudaCode.get_function("main_kernel" )
 if showKernelMemInfo: 
   kernelMemoryInfo(mainKernel, 'mainKernel')
-  sys.exit()
+  print ""
 ###########################################################################
 ###########################################################################
 #Initialize Data
@@ -197,6 +197,23 @@ if plotFinal:
   print "  Particles for final plot: ", particlesForPlot
   print "  Collisions for final plot: ", collisionsForPlot
 print ""
+
+###########################################################################
+###########################################################################
+if showKernelMemInfo: 
+  mainKernel(np.uint8(usingAnimation), np.int32(nParticles), np.int32(collisionsPerRun), np.int32(nCircles), circlesCaract_d, np.int32(nLines), linesCaract_d,
+	  initialPosX_d, initialPosY_d, initialVelX_d, initialVelY_d, initialRegionX_d, initialRegionY_d,
+	  outPosX_d, outPosY_d, times_d,
+	  np.float32(deltaTime_anim), timesIdx_anim_d,
+	  np.float32( deltaTime_radius ), timesIdx_rad_d, timesOccupancy_d, radiusAll_d,
+	  np.uint8(0), np.int32(particlesForPlot), np.uint8(1),
+	  np.intp(0),  grid=grid, block=block)
+  print "Precision: ", cudaP
+  print "Timing Info saved in: cuda_profile_1.log \n\n"
+  sys.exit()
+###########################################################################
+###########################################################################
+
 
 changeInitial = True
 savePos = False
