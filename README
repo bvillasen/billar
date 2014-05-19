@@ -1,4 +1,5 @@
 Chaotic Billards
+================
 
 This is a CUDA enhanced simulation for a peridic grid of disks (2D) or spheres (3D).
 
