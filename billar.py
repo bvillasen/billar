@@ -268,6 +268,7 @@ if plotFinal:
   times = times_d.get()
   plotPosGnuplot(pos)
 
+
 #cuda.stop_profiler()
 if plotting: 
   plotData( nParticles, collisionsPerRun, launchCounter, timesForRadius, radiusAll_d, timesOccupancy_d )

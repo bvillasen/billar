@@ -53,6 +53,10 @@ __global__ void main_kernel( const unsigned char usingAnimation, const int nPart
     tid_b += blockDim.x;
   }
   tid_b = threadIdx.x;
+  
+  __shared__ Vector2D pos_sh[ %(THREADS_PER_BLOCK)s ];
+  __shared__ Vector2D vel_sh[ %(THREADS_PER_BLOCK)s ];
+  
   __syncthreads();
   
   while (tid < nParticles){
