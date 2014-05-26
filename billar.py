@@ -39,6 +39,7 @@ plotting = False
 showKernelMemInfo = False
 startFromData = False
 dataFileNameIn = ""
+useSimple = False
 
 
 #Read in-line parameters
@@ -48,6 +49,7 @@ for option in sys.argv:
   if option.find("iter")>=0 : collisionsPerRun = int(option[option.find("=")+1:])
   if option.find("anim") >=0: usingAnimation = True
   if option.find("mem") >=0: showKernelMemInfo = True
+  if option.find("simple") >=0: useSimple = True
   if option.find("plot") >=0: plotting = True
   if option == "double": cudaP = "double"
   if option == "float": cudaP = "float"
@@ -68,11 +70,11 @@ if int(np.log2(nParticles)) != np.log2(nParticles):
   if choice == 2: nParticles = 2**int(np.log2(nParticles)+1)
 
 #Set CUDA thread grid dimentions
-block = ( 128, 1, 1 )
+block = ( 256, 1, 1 )
 maxThreads = 1024*1024*2
 if nParticles <= maxThreads: grid = ( (nParticles - 1)//block[0] + 1, 1, 1 )
 else: grid = ( (maxThreads - 1)//block[0] + 1, 1, 1 )
-maxTimeIndx = block[0]*4   #Number of points for avrRadius sampling
+maxTimeIndx = 256   #Number of points for avrRadius sampling
 deltaTime_radius = float( maxTime )/maxTimeIndx
 deltaTime_anim = 3
 
@@ -127,8 +129,11 @@ cudaCodeStringTemp = open("cudaBillar.cuT", "r").read()
 cudaCodeString = cudaCodeStringTemp % { "nCIRCLES":nCircles, "nLINES":nLines, "THREADS_PER_BLOCK":block[0], "TIME_INDEX_MAX":maxTimeIndx }
 cudaCode = SourceModule(cudaCodeString, no_extern_c=True, include_dirs=[currentDirectory, toolsDirectory])
 mainKernel = cudaCode.get_function("main_kernel" )
+mainSimpleKernel = cudaCode.get_function("mainSimple_kernel" )
 if showKernelMemInfo: 
   kernelMemoryInfo(mainKernel, 'mainKernel')
+  print ""
+  kernelMemoryInfo(mainSimpleKernel, 'mainSimpleKernel')
   print ""
 ###########################################################################
 ###########################################################################
@@ -208,6 +213,12 @@ if showKernelMemInfo:
 	  np.float32( deltaTime_radius ), timesIdx_rad_d, timesOccupancy_d, radiusAll_d,
 	  np.uint8(0), np.int32(particlesForPlot), np.uint8(1),
 	  np.intp(0),  grid=grid, block=block)
+  
+  mainSimpleKernel( np.int32(nParticles), np.int32(collisionsPerRun), np.int32(nCircles), circlesCaract_d, np.int32(nLines), linesCaract_d,
+	  initialPosX_d, initialPosY_d, initialVelX_d, initialVelY_d, initialRegionX_d, initialRegionY_d,
+	  times_d, np.float32( deltaTime_radius ), timesIdx_rad_d, timesOccupancy_d, radiusAll_d,
+	  np.uint8(1),  grid=grid, block=block)
+  
   print "Precision: ", cudaP
   print "Timing Info saved in: cuda_profile_1.log \n\n"
   sys.exit()
@@ -226,13 +237,19 @@ while occupancyOld < maxTimeIndx:
   occupancy = sum(timesOccupancy_d.get()>=nParticles)
   if occupancy>occupancyOld or occupancy==0: printProgressTime( occupancy, maxTimeIndx, start.time_till(end.record().synchronize())*1e-3 )
   occupancyOld = occupancy
-  mainKernel(np.uint8(usingAnimation), np.int32(nParticles), np.int32(collisionsPerRun), np.int32(nCircles), circlesCaract_d, np.int32(nLines), linesCaract_d,
-	    initialPosX_d, initialPosY_d, initialVelX_d, initialVelY_d, initialRegionX_d, initialRegionY_d,
-	    outPosX_d, outPosY_d, times_d,
-	    np.float32(deltaTime_anim), timesIdx_anim_d,
-	    np.float32( deltaTime_radius ), timesIdx_rad_d, timesOccupancy_d, radiusAll_d,
-	    np.uint8(savePos), np.int32(particlesForPlot), np.uint8(changeInitial),
-	    np.intp(0),  grid=grid, block=block)
+  if useSimple:
+    mainSimpleKernel( np.int32(nParticles), np.int32(collisionsPerRun), np.int32(nCircles), circlesCaract_d, np.int32(nLines), linesCaract_d,
+	  initialPosX_d, initialPosY_d, initialVelX_d, initialVelY_d, initialRegionX_d, initialRegionY_d,
+	  times_d, np.float32( deltaTime_radius ), timesIdx_rad_d, timesOccupancy_d, radiusAll_d,
+	  np.uint8(1),  grid=grid, block=block)
+  else:
+    mainKernel(np.uint8(usingAnimation), np.int32(nParticles), np.int32(collisionsPerRun), np.int32(nCircles), circlesCaract_d, np.int32(nLines), linesCaract_d,
+	      initialPosX_d, initialPosY_d, initialVelX_d, initialVelY_d, initialRegionX_d, initialRegionY_d,
+	      outPosX_d, outPosY_d, times_d,
+	      np.float32(deltaTime_anim), timesIdx_anim_d,
+	      np.float32( deltaTime_radius ), timesIdx_rad_d, timesOccupancy_d, radiusAll_d,
+	      np.uint8(savePos), np.int32(particlesForPlot), np.uint8(changeInitial),
+	      np.intp(0),  grid=grid, block=block)
   launchCounter += 1
   #if runNumber%5==0  and plotting: plotData( runNumber )
 print "\n\nFinished in : {0:.4f}  sec\n".format( float( start.time_till(end.record().synchronize())*1e-3 ) ) 
